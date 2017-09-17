@@ -77,6 +77,7 @@ function calculate_watson(url, event_score) {
     };
 
     invalid_clothes = [];
+    console.log("EVNET SCORE", event_score);
 
     for(var i=0; i<user_clothing.length; ++i){
       if(Math.abs(event_score - all_clothes[user_clothing[i]].formality) >= 0.1){

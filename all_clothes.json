@@ -44,7 +44,7 @@
 
 
   "formal shoes": {
-    "formality": 0.8,
+    "formality": 1.0,
     "category": "footwear"
   },
 
@@ -94,8 +94,12 @@
     "formality": 0.6,
     "category": "upper_garments_1"
   },
-  "dress shirt": {
+  "polo shirt": {
     "formality": 0.8,
+    "category": "upper_garments_1"
+  },
+  "dress shirt": {
+    "formality": 1.0,
     "category": "upper_garments_1"
   },
 
@@ -139,5 +143,42 @@
   "suit": {
     "formality": 1,
     "category": "upper_garments_2"
+  },
+  "tuxedo pants": {
+    "formality": 1,
+    "category": "trousers"
+  },
+  "leather shoe": {
+    "formality": 0.8,
+    "category": "footwear"
+  },
+  "loafers": {
+    "formality": 0.6,
+    "category": "footwear"
+  },
+  "khakis": {
+    "formality": 0.6,
+    "category": "trousers"
+  },
+  "cargos": {
+    "formality": 0.4,
+    "category": "trousers"
+  },
+  "sweatpants": {
+    "formality": 0.4,
+    "category": "trousers"
+  },
+  "dress pants": {
+    "formality": 0.8,
+    "category": "trousers"
+  },
+  "tank shirt": {
+    "formality": 0.2,
+    "category": "upper_garments_1"
+  },
+  "swim suit": {
+    "formality": 0.0,
+    "category": "upper_garments_2"
   }
+
 }

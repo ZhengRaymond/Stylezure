@@ -31,27 +31,27 @@ const VOICES = {
     "I can advise well of this situation..."
   ],
   UNDERDRESSED: [
-    "Hmmm... a bit dreary, let's add some formality!",
+    "Hmmm... a bit too casual, let's add some formality!",
     "The outfit seems a bit too... casual. Let's try something more formal!",
-    "Perhaps we should reconsider your outfit... something more... proper."
+    "Perhaps we should reconsider your outfit... something more... formal."
   ],
   OVERDRESSED: [
-    'I feel you may be overdressing this a bit. Maybe try toning it down a little?',
+    'I feel you may be overdressing a bit. Shall we try toning it down a little?',
     "That *is* very nice indeed... but perhaps a bit too fancy? Let's try something else.",
     "Perhaps overdoing the occasion? Let's try something a little subtler."
   ],
   PERFECT: [
     'You look splendid sir!',
     'Fantastic choice, I love the outfit...',
-    'Good taste, monsieur.'
+    'Good taste, sir.'
   ]
 }
 
 const FORMAL = 1.0;
-const BUSINESS_CASUAL = 0.7;
-const SEMI_FORMAL = 0.5;
-const CASUAL = 0.3;
-const SPORTS_WEAR = 0.15;
+const BUSINESS_CASUAL = 0.8;
+const SEMI_FORMAL = 0.6;
+const CASUAL = 0.4;
+const SPORTS_WEAR = 0.2;
 const SWIMMING = 0;
 const EVENT_INDEX = {
   funeral: [ FORMAL ],
@@ -128,7 +128,7 @@ const get_google_classes = (url) => {
     const labels = results[0].labelAnnotations;
     var vals_to_return = [];
     labels.forEach((label) => {
-      if (label.score > 0.8) {
+      if (label.score > 0.5) {
         google_classes.push(label.description);
       }
     });
@@ -175,10 +175,14 @@ function calculate_watson(url, event_score) {
     var invalid_clothes = [];
 
     user_clothing.forEach((clothing) => {
+
+      // if(Math.abs(event_score - all_clothes[clothing].formality) >= 0.1){
       if(within(event_score, all_clothes[clothing].formality) !== 0) {
         invalid_clothes.push({
           invalid_cloth: clothing,
-          replacements: Object.keys(all_clothes).filter((cloth) => (all_clothes[cloth].formality === event_score && all_clothes[cloth].category === all_clothes[clothing].category))
+          replacements: Object.keys(all_clothes).filter((cloth) => {
+            return event_score.indexOf(all_clothes[cloth].formality) !== -1 && all_clothes[cloth].category === all_clothes[clothing].category
+          })
         });
       }
     })
@@ -203,11 +207,15 @@ var connector = new builder.ChatConnector({
 // Listen for messages from users
 server.post('/api/messages', connector.listen());
 
-function fetch_amazon(session, clothing) {
+function fetch_amazon(session, invalid_clothes) {
+  var clothing = [];
+  invalid_clothes.forEach((invalid_cloth) => {
+    clothing = [...clothing, ...invalid_cloth.replacements];
+  });
   clothing.forEach((cloth) => {
     aws_client.itemSearch({ searchIndex: "FashionMen", responseGroup: "ItemAttributes, Images", keywords: cloth })
       .then((data) => {
-        var text = `[details](${data[0].DetailPageURL}) `;
+        var text = `[${data[0].ItemAttributes[0].Title[0]}](${data[0].DetailPageURL}) `;
         var attachments = [{
           contentType: 'image/jpeg',
           contentUrl: data[0].SmallImage[0].URL[0],
@@ -289,7 +297,6 @@ var bot = new builder.UniversalBot(connector, function (session) {
   }
   setTimeout(() => {
     if (myFormality && correctFormality) {
-      console.log(myFormality);
       var score = within(myFormality.event_score, myFormality.user_score);
       if (score === 1) {
         session.send(VOICES.OVERDRESSED[Math.floor(Math.random()*3)]);
@@ -298,6 +305,8 @@ var bot = new builder.UniversalBot(connector, function (session) {
       }
       else if (score === -1) {
         session.send(VOICES.UNDERDRESSED[Math.floor(Math.random()*3)]);
+        setTimeout(() => session.send("May I suggest some of these?"), 1000);
+        setTimeout(() => fetch_amazon(session, myFormality.invalid_clothes), 2000);
       }
       else if (myFormality.discord) {
         for (var clothing in myFormality.discord) {
