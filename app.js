@@ -91,7 +91,7 @@ const EVENT_INDEX = {
   "basketball game": [ SPORTS_WEAR, CASUAL ],
   hiking: [ SPORTS_WEAR ],
   yoga: [ SPORTS_WEAR ],
-  gym: [ SPORTS_WEAR, SWIMMING ],
+  gym: [ SWIMMING, SPORTS_WEAR ],
   marathon: [ SPORTS_WEAR ],
   triathlon: [ SPORTS_WEAR ],
 
@@ -109,88 +109,55 @@ var correctFormality = null;
 var google_classes = [];
 var watson_classes = [];
 
-const get_google_classes = (url_or_filename) => {
-  var req = {
-    source: {
-      imageUri: url_or_filename
+function within(arr, val) {
+  var len = arr.length;
+  var smallest = arr[0];
+  var largest = arr[len - 1];
+  if (Math.abs(smallest - val) <= 0.2) return true;
+  else if (Math.abs(largest - val) <= 0.2) return true;
+  return false;
+}
+
+const get_google_classes = (url) => {
+  return vision.labelDetection({source:{imageUri: url}}).then((results) => {
+     const labels = results[0].labelAnnotations;
+     var vals_to_return = [];
+
+    labels.forEach((label) => {
+       google_classes.push(label.description);
+     });
+
+   }).catch((err) => console.error(err));
+}
+
+function get_watson_classes(url) {
+  var visual_recognition = watson.visual_recognition({
+    api_key: api_key,
+    version: 'v3',
+    version_date: '2016-05-20'
+  });
+
+  var params = {
+    url: url
+  }
+
+  return visual_recognition.classify(params, function(err, res) {
+    if (err) {
+      return console.error(err);
     }
-  };
 
-  cloudinary.uploader.upload("filename.jpg", function(result) {
-    return vision.labelDetection({source:{imageUri: result.url}}).then((results) => {
-       console.log(results[0].labelAnnotations);
-       const labels = results[0].labelAnnotations;
-       var vals_to_return = [];
 
-      labels.forEach((label) => {
-         google_classes.push(label.description);
-       });
-       console.log("GOOG", google_classes);
+    const classes = res.images[0].classifiers[0].classes;
 
-     }).catch((err) => console.error(err));
+    classes.forEach((label) => watson_classes.push(label.class));
   });
 }
 
-// function get_watson_classes(url) {
-//   var visual_recognition = watson.visual_recognition({
-//     api_key: api_key,
-//     version: 'v3',
-//     version_date: '2016-05-20'
-//   });
-//
-//   // request(url)
-//   //   .then((image) => {
-//   //     request.post(`https://gateway-a.watsonplatform.net/visual-recognition/api/v3/classify&api_key=${api_key}?version=2016-05-20`, (err, resp, body) => {
-//   //       if (err) {
-//   //         console.log('Error!');
-//   //       } else {
-//   //         console.log('URL: ' + body);
-//   //       }
-//   //     });
-//   //     var form = req.form();
-//   //     form.append('images_file', image, {
-//   //         filename: 'myfile.jpg',
-//   //         contentType: 'images/jpeg'
-//   //     });
-//       // request({
-//     //     method: "POST",
-//     //     uri: "https://gateway-a.watsonplatform.net/visual-recognition/api/v3/classify",
-//     //     form: {
-//     //         images_file: image
-//     //     },
-//     //     params: {
-//     //       api_key: api_key,
-//     //       version: '2016-05-20'
-//     //     }
-//     //   }).then((data) => console.log("contact success:", data))
-//     //     .catch((err) => console.log("contact ERROR:", err));
-//     // })
-//     // .catch((err) => console.error(err));
-//     // return;
-//
-//     return request(url)
-//       .then((data) => {
-//       var params = {
-//         images_file: data
-//       }
-//
-//       return visual_recognition.classify(params, function(err, res) {
-//         if (err) {
-//           return console.log(err);
-//         }
-//
-//         console.log(JSON.stringify(res, null, 2));
-//
-//         const classes = res.images[0].classifiers[0].classes;
-//
-//         classes.forEach((label) => watson_classes.push(label.class));
-//       });
-//     })
-//     .catch((err) => console.error(err));
-// }
-
 function calculate_watson(url, event_score) {
-  let promises = [ get_google_classes(url) ];
+  google_classes = [];
+  watson_classes = [];
+
+  let promises = [ get_google_classes(url), get_watson_classes(url) ];
   return Promise.all(promises).then(() => {
     var user_clothing = _.union(google_classes, watson_classes);
     user_clothing = _.intersection(user_clothing, Object.keys(all_clothes));
@@ -202,121 +169,18 @@ function calculate_watson(url, event_score) {
     var invalid_clothes = [];
 
     user_clothing.forEach((clothing) => {
-      if(Math.abs(event_score - all_clothes[clothing].formality) >= 0.1){
+      if(!within(event_score, all_clothes[clothing].formality)) {
         invalid_clothes.push({
           invalid_cloth: clothing,
           replacements: Object.keys(all_clothes).filter((cloth) => (all_clothes[cloth].formality === event_score && all_clothes[cloth].category === all_clothes[clothing].category))
         });
       }
     })
-
+    // console.log("GOOGLE RESULTS: ", google_classes);
+    // console.log("WATSON RESULTS: ", watson_classes);
     return { invalid_clothes, event_score, user_score };
   });
 }
-<<<<<<< HEAD
-// function get_google_classes(url) {
-//   request(url)
-//     .then((image) => {
-//       return vision.labelDetection(image).then((results) => {
-//         const labels = results[0].labelAnnotations;
-//         var vals_to_return = [];
-//
-//         labels.forEach((label) => {
-//           google_classes.push(label.description);
-//         });
-//       });
-//     })
-//     .catch((err) => console.error(err));
-// }
-//
-// function get_watson_classes(url) {
-//   var visual_recognition = watson.visual_recognition({
-//     api_key: api_key,
-//     version: 'v3',
-//     version_date: '2016-05-20'
-//   });
-//
-//   console.log(url);
-//
-//   // request(url)
-//   //   .then((image) => {
-//   //     request.post(`https://gateway-a.watsonplatform.net/visual-recognition/api/v3/classify&api_key=${api_key}?version=2016-05-20`, (err, resp, body) => {
-//   //       if (err) {
-//   //         console.log('Error!');
-//   //       } else {
-//   //         console.log('URL: ' + body);
-//   //       }
-//   //     });
-//   //     var form = req.form();
-//   //     form.append('images_file', image, {
-//   //         filename: 'myfile.jpg',
-//   //         contentType: 'images/jpeg'
-//   //     });
-//       // request({
-//     //     method: "POST",
-//     //     uri: "https://gateway-a.watsonplatform.net/visual-recognition/api/v3/classify",
-//     //     form: {
-//     //         images_file: image
-//     //     },
-//     //     params: {
-//     //       api_key: api_key,
-//     //       version: '2016-05-20'
-//     //     }
-//     //   }).then((data) => console.log("contact success:", data))
-//     //     .catch((err) => console.log("contact ERROR:", err));
-//     // })
-//     // .catch((err) => console.error(err));
-//     // return;
-//
-//     request(url)
-//       .then((data) => {
-//
-//       var params = {
-//         images_file: data
-//       }
-//
-//       return visual_recognition.classify(params, function(err, res) {
-//         if (err) {
-//           return console.log(err);
-//         }
-//
-//         console.log(JSON.stringify(res, null, 2));
-//
-//         const classes = res.images[0].classifiers[0].classes;
-//
-//         classes.forEach((label) => watson_classes.push(label.class));
-//       });
-//     })
-//     .catch((err) => console.error(err));
-// }
-//
-// function calculate_watson(url, event_score) {
-//   let promises = [ get_google_classes(url), get_watson_classes(url) ];
-//
-//   return Promise.all(promises).then(() => {
-//     var user_clothing = _.union(google_classes, watson_classes);
-//     user_clothing = _.intersection(user_clothing, Object.keys(all_clothes));
-//
-//     user_score = 0;
-//     user_clothing.forEach((clothing) => user_score += all_clothes[clothing].formality);
-//     user_score /= user_clothing.length;
-//
-//     var invalid_clothes = [];
-//
-//     user_clothing.forEach((clothing) => {
-//       if(Math.abs(event_score - all_clothes[clothing].formality) >= 0.1){
-//         invalid_clothes.push({
-//           invalid_cloth: clothing,
-//           replacements: Object.keys(all_clothes).filter((cloth) => (all_clothes[cloth].formality === event_score && all_clothes[cloth].category === all_clothes[clothing].category))
-//         });
-//       }
-//     })
-//
-//     return { invalid_clothes, event_score, user_score };
-//   });
-// }
-=======
->>>>>>> 36c2fe3... added node_modules
 
 // Setup Restify Server
 var server = restify.createServer();
@@ -334,13 +198,6 @@ var connector = new builder.ChatConnector({
 
 // Listen for messages from users
 server.post('/api/messages', connector.listen());
-
-// var luisAppId = process.env.LuisAppId;
-// var luisAPIKey = process.env.LuisAPIKey;
-// var luisAPIHostName = process.env.LuisAPIHostName || 'eastus2.api.cognitive.microsoft.com';
-// const LuisModelUrl = 'https://' + luisAPIHostName + '/luis/v1/application?id=' + luisAppId + '&subscription-key=' + luisAPIKey;
-// var recognizer = new builder.LuisRecognizer(LuisModelUrl);
-// var intents = new builder.IntentDialog({ recognizers: [recognizer] })
 
 function fetch_amazon(session, clothing) {
   aws_client.itemSearch({
@@ -369,19 +226,18 @@ var bot = new builder.UniversalBot(connector, function (session) {
   if (session.message.attachments && session.message.attachments.length > 0 && session.message.attachments[0].contentType === 'image/jpeg') {
     if (correctFormality) {
       content = session.message.attachments[0].contentUrl;
-<<<<<<< HEAD
       request(content).pipe(fs.createWriteStream('filename.jpg')).on('close', () => {
-        calculate_watson('filename.jpg', correctFormality)
-          .then((data) => console.log(JSON.stringify(data, undefined, 2)))
-          .catch((err) => console.error(err));
+        cloudinary.uploader.upload("filename.jpg", function(result) {
+          calculate_watson(result.url, correctFormality)
+            .then((data) => {
+              console.log(data);
+              correctFormality = data;
+              session.send("GOOGLE: " + JSON.stringify(google_classes));
+              session.send("WATSON: " + JSON.stringify(watson_classes));
+            })
+            .catch((err) => console.error(err));
+        });
       });
-=======
-      session.send(content);
-      session.send(get_watson_classes(content));
-      // calculate_watson(content, correctFormality)
-      //   .then((data) => console.log(JSON.stringify(data, undefined, 2)))
-      //   .catch((err) => console.error(err));
->>>>>>> 36c2fe3... added node_modules
       session.send("Hmmm... let me see...");
     }
     else {
@@ -423,7 +279,6 @@ var bot = new builder.UniversalBot(connector, function (session) {
           let event = data.documents[0].keyPhrases;
           correctFormality = EVENT_INDEX[event];
           session.send("Let me help you prepare for your %s", event)
-          correctFormality = event;
         }
       })
       .catch((err) => console.error(err));
