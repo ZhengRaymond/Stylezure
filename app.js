@@ -25,6 +25,11 @@ var aws_client = amazon.createClient({
 const SENSITIVITY = 0.2;
 
 const VOICES = {
+  HELPING: [
+    "Allow me to help you prepare for the %s",
+    "I have *just* the idea!",
+    "I can advise well of this situation..."
+  ],
   UNDERDRESSED: [
     "Hmmm... a bit dreary, let's add some formality!",
     "The outfit seems a bit too... casual. Let's try something more formal!",
@@ -43,10 +48,10 @@ const VOICES = {
 }
 
 const FORMAL = 1.0;
-const BUSINESS_CASUAL = 0.8;
-const SEMI_FORMAL = 0.6;
-const CASUAL = 0.4;
-const SPORTS_WEAR = 0.2;
+const BUSINESS_CASUAL = 0.7;
+const SEMI_FORMAL = 0.5;
+const CASUAL = 0.3;
+const SPORTS_WEAR = 0.15;
 const SWIMMING = 0;
 const EVENT_INDEX = {
   funeral: [ FORMAL ],
@@ -56,14 +61,14 @@ const EVENT_INDEX = {
   church: [ BUSINESS_CASUAL, FORMAL ],
   wedding: [ BUSINESS_CASUAL, FORMAL ],
 
-  interview: [ SEMI_FORMAL, BUSINESS_CASUAL ],
-  concert: [ SEMI_FORMAL, BUSINESS_CASUAL ],
-  ballroom: [ SEMI_FORMAL, BUSINESS_CASUAL ],
-  work: [ SEMI_FORMAL, BUSINESS_CASUAL ],
-  meeting: [ SEMI_FORMAL, BUSINESS_CASUAL ],
-  conference: [ SEMI_FORMAL, BUSINESS_CASUAL ],
-  "tech talk": [ SEMI_FORMAL ],
-  tech: [ SEMI_FORMAL ],
+  interview: [ CASUAL, SEMI_FORMAL, BUSINESS_CASUAL ],
+  concert: [ CASUAL, SEMI_FORMAL, BUSINESS_CASUAL ],
+  ballroom: [ CASUAL, SEMI_FORMAL, BUSINESS_CASUAL ],
+  work: [ CASUAL, SEMI_FORMAL, BUSINESS_CASUAL ],
+  meeting: [ CASUAL, SEMI_FORMAL, BUSINESS_CASUAL ],
+  conference: [ CASUAL, SEMI_FORMAL, BUSINESS_CASUAL ],
+  "tech talk": [ CASUAL, SEMI_FORMAL ],
+  tech: [ CASUAL, SEMI_FORMAL ],
 
   bar: [ CASUAL, SEMI_FORMAL ],
   club: [ CASUAL, SEMI_FORMAL ],
@@ -113,19 +118,20 @@ function within(arr, val) {
   var len = arr.length;
   var smallest = arr[0];
   var largest = arr[len - 1];
-  if (Math.abs(smallest - val) <= 0.2) return true;
-  else if (Math.abs(largest - val) <= 0.2) return true;
-  return false;
+  if (smallest - val >= 0.19) return -1;
+  else if (largest - val <= -0.19) return 1;
+  return 0;
 }
 
 const get_google_classes = (url) => {
   return vision.labelDetection({source:{imageUri: url}}).then((results) => {
-     const labels = results[0].labelAnnotations;
-     var vals_to_return = [];
-
+    const labels = results[0].labelAnnotations;
+    var vals_to_return = [];
     labels.forEach((label) => {
-       google_classes.push(label.description);
-     });
+      if (label.score > 0.8) {
+        google_classes.push(label.description);
+      }
+    });
 
    }).catch((err) => console.error(err));
 }
@@ -145,13 +151,16 @@ function get_watson_classes(url) {
     if (err) {
       return console.error(err);
     }
-
-
     const classes = res.images[0].classifiers[0].classes;
 
-    classes.forEach((label) => watson_classes.push(label.class));
+    classes.forEach((label) => {
+      if (label.score > 0.7) {
+        watson_classes.push(label.class)
+      }
+    });
   });
 }
+
 
 function calculate_watson(url, event_score) {
   google_classes = [];
@@ -169,15 +178,13 @@ function calculate_watson(url, event_score) {
     var invalid_clothes = [];
 
     user_clothing.forEach((clothing) => {
-      if(!within(event_score, all_clothes[clothing].formality)) {
+      if(within(event_score, all_clothes[clothing].formality) !== 0) {
         invalid_clothes.push({
           invalid_cloth: clothing,
           replacements: Object.keys(all_clothes).filter((cloth) => (all_clothes[cloth].formality === event_score && all_clothes[cloth].category === all_clothes[clothing].category))
         });
       }
     })
-    // console.log("GOOGLE RESULTS: ", google_classes);
-    // console.log("WATSON RESULTS: ", watson_classes);
     return { invalid_clothes, event_score, user_score };
   });
 }
@@ -223,6 +230,22 @@ function fetch_amazon(session, clothing) {
 // Create your bot with a function to receive messages from the user
 var bot = new builder.UniversalBot(connector, function (session) {
   var content;
+  var text = session.message.text.toLowerCase();
+  if (text.indexOf('hi') !== -1 ||
+      text.indexOf('hello') !== -1 ||
+      text.indexOf('hey') !== -1 ||
+      text.indexOf('greetings') !== -1) {
+    setTimeout(() => session.send('Greetings!'), 300);
+    return;
+  }
+  else if (text.indexOf("who") !== -1 ||
+          text.indexOf("what") !== -1 ||
+          text.indexOf("purpose") !== -1 ){
+    setTimeout(() => session.send('I am your Stylezure!'), 300);
+    setTimeout(() => session.send("I'm a chatbot built using Microsoft Azure's bot service, Microsoft Text Analysis, and IBM Watson Visual Recognition!"), 1200);
+    setTimeout(() => session.send("My job is to help you look the best, anywhere, anytime!"), 2000);
+    return;
+  }
   if (session.message.attachments && session.message.attachments.length > 0 && session.message.attachments[0].contentType === 'image/jpeg') {
     if (correctFormality) {
       content = session.message.attachments[0].contentUrl;
@@ -230,10 +253,7 @@ var bot = new builder.UniversalBot(connector, function (session) {
         cloudinary.uploader.upload("filename.jpg", function(result) {
           calculate_watson(result.url, correctFormality)
             .then((data) => {
-              console.log(data);
-              correctFormality = data;
-              session.send("GOOGLE: " + JSON.stringify(google_classes));
-              session.send("WATSON: " + JSON.stringify(watson_classes));
+              myFormality = data;
             })
             .catch((err) => console.error(err));
         });
@@ -243,21 +263,6 @@ var bot = new builder.UniversalBot(connector, function (session) {
     else {
       session.send("Sir, I can't pick clothes if I know not the occasion!");
     }
-      // {
-      //   "invalid_clothes": [
-      //     {
-      //       "invalid_cloth": "blazer",
-      //       "replacements": [
-      //         "hoodie",
-      //         "trench coat",
-      //         "hood",
-      //         "sweatshirt"
-      //       ]
-      //     }
-      //   ],
-      //   "event_score": 0.2,
-      //   "user_score": 0.39999999999999997
-      // }
   }
   else {
     content =  { 'documents': [
@@ -278,25 +283,31 @@ var bot = new builder.UniversalBot(connector, function (session) {
         else {
           let event = data.documents[0].keyPhrases;
           correctFormality = EVENT_INDEX[event];
-          session.send("Let me help you prepare for your %s", event)
+          session.send(VOICES.HELPING[Math.floor(Math.random()*3)], event)
+          setTimeout(() => session.send("Show me your choice of outfit please."), 1500);
         }
       })
       .catch((err) => console.error(err));
   }
-  if (myFormality && correctFormality) {
-    if (myFormality.value - correctFormality.value > SENSITIVITY) {
-      session.send(VOICES.OVERDRESSED[Math.floor(Math.random()*3)]);
-    }
-    else if (myFormality.value - correctFormality.value < -1 * SENSITIVITY) {
-      session.send(VOICES.UNDERDRESSED[Math.floor(Math.random()*3)]);
-    }
-    else if (myFormality.discord) {
-      for (var clothing in myFormality.discord) {
-        session.send(`Pretty good, but I feel you should try switching out your ${clothing} for something more ${latestMe.unsync[key]}. Here are some ${clothing} suggestions:`)
+  setTimeout(() => {
+    if (myFormality && correctFormality) {
+      var score = within(myFormality.event_score, myFormality.user_score);
+      if (score === 1) {
+        session.send(VOICES.OVERDRESSED[Math.floor(Math.random()*3)]);
+      }
+      else if (score === -1) {
+        session.send(VOICES.UNDERDRESSED[Math.floor(Math.random()*3)]);
+      }
+      else if (myFormality.discord) {
+        for (var clothing in myFormality.discord) {
+          session.send(`Pretty good, but I feel you should try switching out your ${clothing} for something more ${latestMe.unsync[key]}. Here are some ${clothing} suggestions:`)
+        }
+      }
+      else {
+        session.send(VOICES.PERFECT[Math.floor(Math.random()*3)]);
+        myFormality = null;
+        correctFormality = null;
       }
     }
-    else {
-      session.send(VOICES.PERFECT[Math.floor(Math.random()*3)]);
-    }
-  }
+  }, 2000);
 });

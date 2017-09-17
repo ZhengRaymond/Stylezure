@@ -10,7 +10,7 @@
   "walking shoe": 0.4,
   "cross training shoe": 0.2,
   "denim": 0.2,
-  "jeans": 0.2,
+  "jeans": 0.5,
   "shorts": 0,
   "active pants": 0.2,
   "trunk": 0.2,
@@ -24,7 +24,7 @@
 
   "hoodie": 0.2,
   "tuxedo": 1,
-  "blazer": 0.8,
+  "blazer": 0.6,
   "coat": 0.4,
   "trench coat": 0.2,
   "jacket": 0.4,
