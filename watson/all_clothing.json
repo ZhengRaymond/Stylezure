@@ -1,0 +1,38 @@
+{
+  "all_clothing":
+  [
+    "shoe",
+    "boot",
+    "tennis shoe",
+    "running shoe",
+    "sneakers",
+    "outdoor shoe",
+    "work boots",
+    "cowboy boot",
+    "walking shoe",
+    "cross training shoe",
+
+    "denim",
+    "jeans",
+    "shorts",
+    "active pants",
+    "trunk",
+
+    "active shirt",
+    "t shirt",
+    "overcoat",
+    "sweater",
+    "long sleeved t shirt",
+    "dress shirt",
+    "hoodie",
+    "tuxedo",
+    "blazer",
+    "coat",
+    "trench coat",
+    "jacket",
+    "hood",
+    "sweatshirt",
+    "leather jacket",
+    "suit"
+  ]
+}

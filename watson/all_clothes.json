@@ -1,0 +1,143 @@
+{
+  "shoe": {
+    "formality": 0.2,
+    "category": "footwear"
+  },
+  "boot": {
+    "formality": 0,
+    "category": "footwear"
+  },
+  "tennis shoe": {
+    "formality": 0.2,
+    "category": "footwear"
+  },
+  "running shoe": {
+    "formality": 0.2,
+    "category": "footwear"
+  },
+  "sneakers": {
+    "formality": 0.2,
+    "category": "footwear"
+  },
+  "outdoor shoe": {
+    "formality": 0.4,
+    "category": "footwear"
+  },
+  "work boots": {
+    "formality": 0.4,
+    "category": "footwear"
+  },
+  "cowboy boot": {
+    "formality": 0,
+    "category": "footwear"
+  },
+  "walking shoe": {
+    "formality": 0.4,
+    "category": "footwear"
+  },
+  "cross training shoe": {
+    "formality": 0.2,
+    "category": "footwear"
+  },
+
+
+
+
+  "formal shoes": {
+    "formality": 0.8,
+    "category": "footwear"
+  },
+
+
+
+
+
+  "denim": {
+    "formality": 0.2,
+    "category": "trousers"
+  },
+  "jeans": {
+    "formality": 0.2,
+    "category": "trousers"
+  },
+  "shorts": {
+    "formality": 0,
+    "category": "trousers"
+  },
+  "active pants": {
+    "formality": 0.2,
+    "category": "trousers"
+  },
+  "trunk": {
+    "formality": 0.2,
+    "category": "trousers"
+  },
+
+
+  "active shirt": {
+    "formality": 0.2,
+    "category": "upper_garments_1"
+  },
+  "t shirt": {
+    "formality": 0.2,
+    "category": "upper_garments_1"
+  },
+  "overcoat": {
+    "formality": 0.4,
+    "category": "upper_garments_1"
+  },
+  "sweater": {
+    "formality": 0.4,
+    "category": "upper_garments_1"
+  },
+  "long sleeved t shirt": {
+    "formality": 0.6,
+    "category": "upper_garments_1"
+  },
+  "dress shirt": {
+    "formality": 0.8,
+    "category": "upper_garments_1"
+  },
+
+
+  "hoodie": {
+    "formality": 0.2,
+    "category": "upper_garments_2"
+  },
+  "tuxedo": {
+    "formality": 1,
+    "category": "upper_garments_2"
+  },
+  "blazer": {
+    "formality": 0.8,
+    "category": "upper_garments_2"
+  },
+  "coat": {
+    "formality": 0.4,
+    "category": "upper_garments_2"
+  },
+  "trench coat": {
+    "formality": 0.2,
+    "category": "upper_garments_2"
+  },
+  "jacket": {
+    "formality": 0.4,
+    "category": "upper_garments_2"
+  },
+  "hood": {
+    "formality": 0.2,
+    "category": "upper_garments_2"
+  },
+  "sweatshirt": {
+    "formality": 0.2,
+    "category": "upper_garments_2"
+  },
+  "leather jacket": {
+    "formality": 0.4,
+    "category": "upper_garments_2"
+  },
+  "suit": {
+    "formality": 1,
+    "category": "upper_garments_2"
+  }
+}
