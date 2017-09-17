@@ -163,9 +163,6 @@ function get_watson_classes(url) {
 
 
 function calculate_watson(url, event_score) {
-  google_classes = [];
-  watson_classes = [];
-
   let promises = [ get_google_classes(url), get_watson_classes(url) ];
   return Promise.all(promises).then(() => {
     var user_clothing = _.union(google_classes, watson_classes);
@@ -207,24 +204,18 @@ var connector = new builder.ChatConnector({
 server.post('/api/messages', connector.listen());
 
 function fetch_amazon(session, clothing) {
-  aws_client.itemSearch({
-    searchIndex: "FashionMen",
-    responseGroup: "ItemAttributes, Images",
-    keywords: clothing
-  })
-    .then((data) => {
-      for (var i = 0; i < data.length; i++) {
-        if (i === 2) break;
-        var text = `[details](${data[i].DetailPageURL}) `;
+  clothing.forEach((cloth) => {
+    aws_client.itemSearch({ searchIndex: "FashionMen", responseGroup: "ItemAttributes, Images", keywords: cloth })
+      .then((data) => {
+        var text = `[details](${data[0].DetailPageURL}) `;
         var attachments = [{
           contentType: 'image/jpeg',
-          contentUrl: data[i].SmallImage[0].URL[0],
+          contentUrl: data[0].SmallImage[0].URL[0],
           name: 'item_image'
         }];
         session.send({ text, attachments });
-      }
-    })
-    .catch((err) => console.error(err));
+      }).catch((err) => console.error(err));
+  })
 }
 
 // Create your bot with a function to receive messages from the user
@@ -244,6 +235,13 @@ var bot = new builder.UniversalBot(connector, function (session) {
     setTimeout(() => session.send('I am your Stylezure!'), 300);
     setTimeout(() => session.send("I'm a chatbot built using Microsoft Azure's bot service, Microsoft Text Analysis, and IBM Watson Visual Recognition!"), 1200);
     setTimeout(() => session.send("My job is to help you look the best, anywhere, anytime!"), 2000);
+    return;
+  }
+  else if (text === 'reset') {
+    myFormality = null;
+    correctFormality = null;
+    google_classes = [];
+    watson_classes = [];
     return;
   }
   if (session.message.attachments && session.message.attachments.length > 0 && session.message.attachments[0].contentType === 'image/jpeg') {
@@ -291,9 +289,12 @@ var bot = new builder.UniversalBot(connector, function (session) {
   }
   setTimeout(() => {
     if (myFormality && correctFormality) {
+      console.log(myFormality);
       var score = within(myFormality.event_score, myFormality.user_score);
       if (score === 1) {
         session.send(VOICES.OVERDRESSED[Math.floor(Math.random()*3)]);
+        setTimeout(() => session.send("May I suggest some of these?"), 1000);
+        setTimeout(() => fetch_amazon(session, myFormality.invalid_clothes), 2000);
       }
       else if (score === -1) {
         session.send(VOICES.UNDERDRESSED[Math.floor(Math.random()*3)]);
@@ -307,7 +308,9 @@ var bot = new builder.UniversalBot(connector, function (session) {
         session.send(VOICES.PERFECT[Math.floor(Math.random()*3)]);
         myFormality = null;
         correctFormality = null;
+        google_classes = [];
+        watson_classes = [];
       }
     }
-  }, 2000);
+  }, 3000);
 });
