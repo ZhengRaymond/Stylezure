@@ -301,12 +301,19 @@ var bot = new builder.UniversalBot(connector, function (session) {
       if (score === 1) {
         session.send(VOICES.OVERDRESSED[Math.floor(Math.random()*3)]);
         setTimeout(() => session.send("May I suggest some of these?"), 1000);
-        setTimeout(() => fetch_amazon(session, myFormality.invalid_clothes), 2000);
+        setTimeout(() => {
+          fetch_amazon(session, myFormality.invalid_clothes);
+          myFormality = null;
+        }, 2000);
       }
       else if (score === -1) {
         session.send(VOICES.UNDERDRESSED[Math.floor(Math.random()*3)]);
         setTimeout(() => session.send("May I suggest some of these?"), 1000);
-        setTimeout(() => fetch_amazon(session, myFormality.invalid_clothes), 2000);
+        setTimeout(() => {
+          fetch_amazon(session, myFormality.invalid_clothes);
+          myFormality = null;
+        }, 2000);
+
       }
       else if (myFormality.discord) {
         for (var clothing in myFormality.discord) {
