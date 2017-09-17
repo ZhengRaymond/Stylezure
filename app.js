@@ -2,8 +2,8 @@ var restify = require('restify');
 var builder = require('botbuilder');
 var request = require('request-promise');
 var amazon = require('amazon-product-api');
-// const Vision = require('@google-cloud/vision');
-// const vision = Vision();
+const Vision = require('@google-cloud/vision');
+const vision = Vision();
 const _ = require('lodash');
 const all_clothes = require('./all_clothes.json');
 var watson = require('watson-developer-cloud');
@@ -131,9 +131,66 @@ const get_google_classes = (url_or_filename) => {
   });
 }
 
-function calculate_watson(url, event_score) {
-    let promises = [ get_google_classes(url) ];
+// function get_watson_classes(url) {
+//   var visual_recognition = watson.visual_recognition({
+//     api_key: api_key,
+//     version: 'v3',
+//     version_date: '2016-05-20'
+//   });
+//
+//   // request(url)
+//   //   .then((image) => {
+//   //     request.post(`https://gateway-a.watsonplatform.net/visual-recognition/api/v3/classify&api_key=${api_key}?version=2016-05-20`, (err, resp, body) => {
+//   //       if (err) {
+//   //         console.log('Error!');
+//   //       } else {
+//   //         console.log('URL: ' + body);
+//   //       }
+//   //     });
+//   //     var form = req.form();
+//   //     form.append('images_file', image, {
+//   //         filename: 'myfile.jpg',
+//   //         contentType: 'images/jpeg'
+//   //     });
+//       // request({
+//     //     method: "POST",
+//     //     uri: "https://gateway-a.watsonplatform.net/visual-recognition/api/v3/classify",
+//     //     form: {
+//     //         images_file: image
+//     //     },
+//     //     params: {
+//     //       api_key: api_key,
+//     //       version: '2016-05-20'
+//     //     }
+//     //   }).then((data) => console.log("contact success:", data))
+//     //     .catch((err) => console.log("contact ERROR:", err));
+//     // })
+//     // .catch((err) => console.error(err));
+//     // return;
+//
+//     return request(url)
+//       .then((data) => {
+//       var params = {
+//         images_file: data
+//       }
+//
+//       return visual_recognition.classify(params, function(err, res) {
+//         if (err) {
+//           return console.log(err);
+//         }
+//
+//         console.log(JSON.stringify(res, null, 2));
+//
+//         const classes = res.images[0].classifiers[0].classes;
+//
+//         classes.forEach((label) => watson_classes.push(label.class));
+//       });
+//     })
+//     .catch((err) => console.error(err));
+// }
 
+function calculate_watson(url, event_score) {
+  let promises = [ get_google_classes(url) ];
   return Promise.all(promises).then(() => {
     var user_clothing = _.union(google_classes, watson_classes);
     user_clothing = _.intersection(user_clothing, Object.keys(all_clothes));
@@ -156,6 +213,7 @@ function calculate_watson(url, event_score) {
     return { invalid_clothes, event_score, user_score };
   });
 }
+<<<<<<< HEAD
 // function get_google_classes(url) {
 //   request(url)
 //     .then((image) => {
@@ -257,6 +315,8 @@ function calculate_watson(url, event_score) {
 //     return { invalid_clothes, event_score, user_score };
 //   });
 // }
+=======
+>>>>>>> 36c2fe3... added node_modules
 
 // Setup Restify Server
 var server = restify.createServer();
@@ -309,11 +369,19 @@ var bot = new builder.UniversalBot(connector, function (session) {
   if (session.message.attachments && session.message.attachments.length > 0 && session.message.attachments[0].contentType === 'image/jpeg') {
     if (correctFormality) {
       content = session.message.attachments[0].contentUrl;
+<<<<<<< HEAD
       request(content).pipe(fs.createWriteStream('filename.jpg')).on('close', () => {
         calculate_watson('filename.jpg', correctFormality)
           .then((data) => console.log(JSON.stringify(data, undefined, 2)))
           .catch((err) => console.error(err));
       });
+=======
+      session.send(content);
+      session.send(get_watson_classes(content));
+      // calculate_watson(content, correctFormality)
+      //   .then((data) => console.log(JSON.stringify(data, undefined, 2)))
+      //   .catch((err) => console.error(err));
+>>>>>>> 36c2fe3... added node_modules
       session.send("Hmmm... let me see...");
     }
     else {
