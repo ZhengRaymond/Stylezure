@@ -11,6 +11,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "amazon-product-api": "^0.4.4",
     "botbuilder": "^3.8.4",
     "request-promise": "^4.2.1",
     "restify": "^5.0.0"

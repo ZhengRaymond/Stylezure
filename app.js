@@ -2,8 +2,33 @@ var restify = require('restify');
 var builder = require('botbuilder');
 var https = require('https');
 var request = require('request-promise');
+var amazon = require('amazon-product-api');
+
+var aws_client = amazon.createClient({
+  awsId: "AKIAJMBOUNJREELMPV3Q",
+  awsSecret: "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",
+  awsTag: "stylezure-20"
+});
 
 const SENSITIVITY = 0.2;
+
+const VOICES = {
+  UNDERDRESSED: [
+    "Hmmm... a bit dreary, let's add some formality!",
+    "The outfit seems a bit too... casual. Let's try something more formal!",
+    "Perhaps we should reconsider your outfit... something more... proper."
+  ],
+  OVERDRESSED: [
+    'I feel you may be overdressing this a bit. Maybe try toning it down a little?',
+    "That *is* very nice indeed... but perhaps a bit too fancy? Let's try something else.",
+    "Perhaps overdoing the occasion? Let's try something a little subtler."
+  ],
+  PERFECT: [
+    'You look splendid sir!',
+    'Fantastic choice, I love the outfit...',
+    'Good taste, monsieur.'
+  ]
+}
 
 const FORMAL = 1.0;
 const BUSINESS_CASUAL = 0.8;
@@ -83,21 +108,52 @@ const uri = "eastus2.api.cognitive.microsoft.com";
 const path = '/text/analytics/v2.0/keyPhrases';
 const full_uri = "https://eastus2.api.cognitive.microsoft.com/text/analytics/v2.0/keyPhrases";
 
+const watson_uri = "";
+
 // var luisAppId = process.env.LuisAppId;
 // var luisAPIKey = process.env.LuisAPIKey;
 // var luisAPIHostName = process.env.LuisAPIHostName || 'eastus2.api.cognitive.microsoft.com';
 // const LuisModelUrl = 'https://' + luisAPIHostName + '/luis/v1/application?id=' + luisAppId + '&subscription-key=' + luisAPIKey;
 // var recognizer = new builder.LuisRecognizer(LuisModelUrl);
 // var intents = new builder.IntentDialog({ recognizers: [recognizer] })
-var latestMe = null;
-var correctKey = null;
+var myFormality = null;
+var correctFormality = null;
+
+function fetch_amazon(session, clothing) {
+  aws_client.itemSearch({
+    searchIndex: "FashionMen",
+    responseGroup: "ItemAttributes, Images",
+    keywords: clothing
+  })
+    .then((data) => {
+      for (var i = 0; i < data.length; i++) {
+        if (i === 2) break;
+        var text = `[details](${data[i].DetailPageURL}) `;
+        var attachments = [{
+          contentType: 'image/jpeg',
+          contentUrl: data[i].SmallImage[0].URL[0],
+          name: 'item_image'
+        }];
+        session.send({ text, attachments });
+      }
+    })
+    .catch((err) => console.error(err));
+}
 
 // Create your bot with a function to receive messages from the user
 var bot = new builder.UniversalBot(connector, function (session) {
   var content;
   if (session.message.attachments && session.message.attachments.length > 0 && session.message.attachments[0].contentType === 'image/jpeg') {
     content = session.message.attachments[0].contentUrl;
-    latestMe = 1;//CALL_WATSON(content);
+    request({
+      method: 'POST',
+      uri: watson_uri,
+      body: JSON.stringify(content)
+    })
+      .then((data) => {
+        myFormality = data;
+      })
+      .catch((err) => console.error(err));
     session.send("Hmmm... let me see...");
   }
   else {
@@ -117,24 +173,27 @@ var bot = new builder.UniversalBot(connector, function (session) {
           session.send("I'm sorry, I didn't get that.");
         }
         else {
+          correctFormality = EVENT_INDEX[data.documents[0].keyPhrases];
           session.send("Let me help you prepare for your %s", data.documents[0].keyPhrases)
         }
         correctKey = 1; // get formality index of event.
       })
-      .catch((err) => console.log(err));
+      .catch((err) => console.error(err));
   }
-
-  if (latestMe && correctKey) {
-    if (latestMe.formality - correctKey.formality > SENSITIVITY) {
-      session.send('I feel you may be overdressing this a bit. Maybe try toning it down a little?');
+  if (myFormality && correctFormality) {
+    if (myFormality.value - correctFormality.value > SENSITIVITY) {
+      session.send(VOICES.OVERDRESSED[Math.floor(Math.random()*3)]);
     }
-    else if (latestMe.formality - correctKey.formality < -1 * SENSITIVITY) {
-      session.send('I feel you may be overdressing this a bit. Maybe try toning it down a little?');
+    else if (myFormality.value - correctFormality.value < -1 * SENSITIVITY) {
+      session.send(VOICES.UNDERDRESSED[Math.floor(Math.random()*3)]);
     }
-    else if (latestMe.unsync) {
-      for (var clothing in latestMe.unsync) {
-        session.send(`Pretty good, but I feel you should try switching out your ${clothing} for something more ${latestMe.unsync[key]}`)
+    else if (myFormality.discord) {
+      for (var clothing in myFormality.discord) {
+        session.send(`Pretty good, but I feel you should try switching out your ${clothing} for something more ${latestMe.unsync[key]}. Here are some ${clothing} suggestions:`)
       }
+    }
+    else {
+      session.send(VOICES.PERFECT[Math.floor(Math.random()*3)]);
     }
   }
 });
