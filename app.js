@@ -212,6 +212,9 @@ function fetch_amazon(session, invalid_clothes) {
   invalid_clothes.forEach((invalid_cloth) => {
     clothing = [...clothing, ...invalid_cloth.replacements];
   });
+  clothing = _.uniqBy(clothing, (item) => {
+    return item;
+  });
   clothing.forEach((cloth) => {
     aws_client.itemSearch({ searchIndex: "FashionMen", responseGroup: "ItemAttributes, Images", keywords: cloth })
       .then((data) => {
@@ -304,6 +307,9 @@ var bot = new builder.UniversalBot(connector, function (session) {
         setTimeout(() => {
           fetch_amazon(session, myFormality.invalid_clothes);
           myFormality = null;
+          correctFormality = null;
+          google_classes = [];
+          watson_classes = [];
         }, 2000);
       }
       else if (score === -1) {
@@ -312,8 +318,10 @@ var bot = new builder.UniversalBot(connector, function (session) {
         setTimeout(() => {
           fetch_amazon(session, myFormality.invalid_clothes);
           myFormality = null;
+          correctFormality = null;
+          google_classes = [];
+          watson_classes = [];
         }, 2000);
-
       }
       else if (myFormality.discord) {
         for (var clothing in myFormality.discord) {
