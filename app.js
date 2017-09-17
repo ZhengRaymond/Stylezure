@@ -8,6 +8,13 @@ const _ = require('lodash');
 const all_clothes = require('./all_clothes.json');
 var watson = require('watson-developer-cloud');
 var fs = require('fs');
+var cloudinary = require('cloudinary');
+
+cloudinary.config({
+  cloud_name: 'stylezure',
+  api_key: '344882863937558',
+  api_secret: 'hMCXJ2IgSiGpW_6ya-SqYovmDVA'
+});
 
 var aws_client = amazon.createClient({
   awsId: "AKIAJMBOUNJREELMPV3Q",
@@ -102,27 +109,30 @@ var correctFormality = null;
 var google_classes = [];
 var watson_classes = [];
 
-function get_google_classes(url) {
-  var request = {
+const get_google_classes = (url_or_filename) => {
+  var req = {
     source: {
-      imageUri: 'https://lh4.googleusercontent.com/-SCQ3gQtzjxU/AAAAAAAAAAI/AAAAAAAAB-U/fIoQ4DGkXQ4/photo.jpg'
+      imageUri: url_or_filename
     }
-  }
+  };
 
-  console.log('URL:', url);
-  return vision.labelDetection(request).then((results) => {
-    const labels = results[0].labelAnnotations;
-    var vals_to_return = [];
+  cloudinary.uploader.upload("filename.jpg", function(result) {
+    return vision.labelDetection({source:{imageUri: result.url}}).then((results) => {
+       console.log(results[0].labelAnnotations);
+       const labels = results[0].labelAnnotations;
+       var vals_to_return = [];
 
-    labels.forEach((label) => {
-      google_classes.push(label.description);
-    });
-    console.log(google_classes);
+      labels.forEach((label) => {
+         google_classes.push(label.description);
+       });
+       console.log("GOOG", google_classes);
+
+     }).catch((err) => console.error(err));
   });
 }
 
 function calculate_watson(url, event_score) {
-  let promises = [ get_google_classes(url) ];
+    let promises = [ get_google_classes(url) ];
 
   return Promise.all(promises).then(() => {
     var user_clothing = _.union(google_classes, watson_classes);
@@ -198,9 +208,11 @@ var bot = new builder.UniversalBot(connector, function (session) {
   if (session.message.attachments && session.message.attachments.length > 0 && session.message.attachments[0].contentType === 'image/jpeg') {
     if (correctFormality) {
       content = session.message.attachments[0].contentUrl;
-      calculate_watson(content, correctFormality)
-        .then((data) => console.log(JSON.stringify(data, undefined, 2)))
-        .catch((err) => console.error(err));
+      request(content).pipe(fs.createWriteStream('filename.jpg')).on('close', () => {
+        calculate_watson('filename.jpg', correctFormality)
+          .then((data) => console.log(JSON.stringify(data, undefined, 2)))
+          .catch((err) => console.error(err));
+      });
       session.send("Hmmm... let me see...");
     }
     else {
