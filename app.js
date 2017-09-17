@@ -1,8 +1,13 @@
 var restify = require('restify');
 var builder = require('botbuilder');
-var https = require('https');
 var request = require('request-promise');
 var amazon = require('amazon-product-api');
+const Vision = require('@google-cloud/vision');
+const vision = Vision();
+const _ = require('lodash');
+const all_clothes = require('./all_clothes.json');
+var watson = require('watson-developer-cloud');
+var fs = require('fs');
 
 var aws_client = amazon.createClient({
   awsId: "AKIAJMBOUNJREELMPV3Q",
@@ -86,6 +91,118 @@ const EVENT_INDEX = {
   "pool party": [ SWIMMING ],
   "water park": [ SWIMMING ]
 }
+const uri = "eastus2.api.cognitive.microsoft.com";
+const path = '/text/analytics/v2.0/keyPhrases';
+const full_uri = "https://eastus2.api.cognitive.microsoft.com/text/analytics/v2.0/keyPhrases";
+const api_key = "ef20984fb589669107f00b69fe334de9ebdf8590";
+
+var myFormality = null;
+var correctFormality = null;
+
+var google_classes = [];
+var watson_classes = [];
+
+function get_google_classes(url) {
+  request(url)
+    .then((image) => {
+      return vision.labelDetection(image).then((results) => {
+        const labels = results[0].labelAnnotations;
+        var vals_to_return = [];
+
+        labels.forEach((label) => {
+          google_classes.push(label.description);
+        });
+      });
+    })
+    .catch((err) => console.error(err));
+}
+
+function get_watson_classes(url) {
+  var visual_recognition = watson.visual_recognition({
+    api_key: api_key,
+    version: 'v3',
+    version_date: '2016-05-20'
+  });
+
+  console.log(url);
+
+  // request(url)
+  //   .then((image) => {
+  //     request.post(`https://gateway-a.watsonplatform.net/visual-recognition/api/v3/classify&api_key=${api_key}?version=2016-05-20`, (err, resp, body) => {
+  //       if (err) {
+  //         console.log('Error!');
+  //       } else {
+  //         console.log('URL: ' + body);
+  //       }
+  //     });
+  //     var form = req.form();
+  //     form.append('images_file', image, {
+  //         filename: 'myfile.jpg',
+  //         contentType: 'images/jpeg'
+  //     });
+      // request({
+    //     method: "POST",
+    //     uri: "https://gateway-a.watsonplatform.net/visual-recognition/api/v3/classify",
+    //     form: {
+    //         images_file: image
+    //     },
+    //     params: {
+    //       api_key: api_key,
+    //       version: '2016-05-20'
+    //     }
+    //   }).then((data) => console.log("contact success:", data))
+    //     .catch((err) => console.log("contact ERROR:", err));
+    // })
+    // .catch((err) => console.error(err));
+    // return;
+
+    request(url)
+      .then((data) => {
+
+      var params = {
+        images_file: data
+      }
+
+      return visual_recognition.classify(params, function(err, res) {
+        if (err) {
+          return console.log(err);
+        }
+
+        console.log(JSON.stringify(res, null, 2));
+
+        const classes = res.images[0].classifiers[0].classes;
+
+        classes.forEach((label) => watson_classes.push(label.class));
+      });
+    })
+    .catch((err) => console.error(err));
+}
+
+function calculate_watson(url, event_score) {
+  let promises = [ get_google_classes(url), get_watson_classes(url) ];
+
+  return Promise.all(promises).then(() => {
+    var user_clothing = _.union(google_classes, watson_classes);
+    user_clothing = _.intersection(user_clothing, Object.keys(all_clothes));
+
+    user_score = 0;
+    user_clothing.forEach((clothing) => user_score += all_clothes[clothing].formality);
+    user_score /= user_clothing.length;
+
+    var invalid_clothes = [];
+
+    user_clothing.forEach((clothing) => {
+      if(Math.abs(event_score - all_clothes[clothing].formality) >= 0.1){
+        invalid_clothes.push({
+          invalid_cloth: clothing,
+          replacements: Object.keys(all_clothes).filter((cloth) => (all_clothes[cloth].formality === event_score && all_clothes[cloth].category === all_clothes[clothing].category))
+        });
+      }
+    })
+
+    return { invalid_clothes, event_score, user_score };
+  });
+}
 
 // Setup Restify Server
 var server = restify.createServer();
@@ -104,20 +221,12 @@ var connector = new builder.ChatConnector({
 // Listen for messages from users
 server.post('/api/messages', connector.listen());
 
-const uri = "eastus2.api.cognitive.microsoft.com";
-const path = '/text/analytics/v2.0/keyPhrases';
-const full_uri = "https://eastus2.api.cognitive.microsoft.com/text/analytics/v2.0/keyPhrases";
-
-const watson_uri = "";
-
 // var luisAppId = process.env.LuisAppId;
 // var luisAPIKey = process.env.LuisAPIKey;
 // var luisAPIHostName = process.env.LuisAPIHostName || 'eastus2.api.cognitive.microsoft.com';
 // const LuisModelUrl = 'https://' + luisAPIHostName + '/luis/v1/application?id=' + luisAppId + '&subscription-key=' + luisAPIKey;
 // var recognizer = new builder.LuisRecognizer(LuisModelUrl);
 // var intents = new builder.IntentDialog({ recognizers: [recognizer] })
-var myFormality = null;
-var correctFormality = null;
 
 function fetch_amazon(session, clothing) {
   aws_client.itemSearch({
@@ -144,17 +253,34 @@ function fetch_amazon(session, clothing) {
 var bot = new builder.UniversalBot(connector, function (session) {
   var content;
   if (session.message.attachments && session.message.attachments.length > 0 && session.message.attachments[0].contentType === 'image/jpeg') {
-    content = session.message.attachments[0].contentUrl;
-    request({
-      method: 'POST',
-      uri: watson_uri,
-      body: JSON.stringify(content)
-    })
-      .then((data) => {
-        myFormality = data;
-      })
-      .catch((err) => console.error(err));
-    session.send("Hmmm... let me see...");
+    // console.log(session.message);
+    // console.log('@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@');
+    if (correctFormality) {
+      content = session.message.attachments[0].contentUrl;
+      session.send(content);
+      // calculate_watson(content, correctFormality)
+      //   .then((data) => console.log(JSON.stringify(data, undefined, 2)))
+      //   .catch((err) => console.error(err));
+      session.send("Hmmm... let me see...");
+    }
+    else {
+      session.send("Sir, I can't pick clothes if I know not the occasion!");
+    }
+      // {
+      //   "invalid_clothes": [
+      //     {
+      //       "invalid_cloth": "blazer",
+      //       "replacements": [
+      //         "hoodie",
+      //         "trench coat",
+      //         "hood",
+      //         "sweatshirt"
+      //       ]
+      //     }
+      //   ],
+      //   "event_score": 0.2,
+      //   "user_score": 0.39999999999999997
+      // }
   }
   else {
     content =  { 'documents': [
@@ -173,10 +299,11 @@ var bot = new builder.UniversalBot(connector, function (session) {
           session.send("I'm sorry, I didn't get that.");
         }
         else {
-          correctFormality = EVENT_INDEX[data.documents[0].keyPhrases];
-          session.send("Let me help you prepare for your %s", data.documents[0].keyPhrases)
+          let event = data.documents[0].keyPhrases;
+          correctFormality = EVENT_INDEX[event];
+          session.send("Let me help you prepare for your %s", event)
+          correctFormality = event;
         }
-        correctKey = 1; // get formality index of event.
       })
       .catch((err) => console.error(err));
   }

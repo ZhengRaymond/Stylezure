@@ -14,7 +14,7 @@ var fs = require('fs');
 var google_classes = [];
 var watson_classes = [];
 
-const get_google_classes = (url_or_filename) => {
+function get_google_classes(url_or_filename) {
   var request = {
     source: {
       filename: url_or_filename
@@ -31,7 +31,7 @@ const get_google_classes = (url_or_filename) => {
   });
 }
 
-const get_watson_classes = (url_or_filename) => {
+function get_watson_classes(url_or_filename) {
   var visual_recognition = watson.visual_recognition({
     api_key: api_key,
     version: 'v3',
@@ -53,7 +53,7 @@ const get_watson_classes = (url_or_filename) => {
   });
 }
 
-function init(url, event_score) {
+function calculate_watson(url, event_score) {
   let promises = [ get_google_classes(url), get_watson_classes(url) ];
 
   Promise.all(promises).then(() => {
@@ -87,8 +87,6 @@ function init(url, event_score) {
       }
     }
 
-    console.log(invalid_clothes)
-    console.log(user_score);
     return invalid_clothes;
   });
 }
