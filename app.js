@@ -103,83 +103,26 @@ var google_classes = [];
 var watson_classes = [];
 
 function get_google_classes(url) {
-  request(url)
-    .then((image) => {
-      return vision.labelDetection(image).then((results) => {
-        const labels = results[0].labelAnnotations;
-        var vals_to_return = [];
+  var request = {
+    source: {
+      imageUri: 'https://lh4.googleusercontent.com/-SCQ3gQtzjxU/AAAAAAAAAAI/AAAAAAAAB-U/fIoQ4DGkXQ4/photo.jpg'
+    }
+  }
 
-        labels.forEach((label) => {
-          google_classes.push(label.description);
-        });
-      });
-    })
-    .catch((err) => console.error(err));
-}
+  console.log('URL:', url);
+  return vision.labelDetection(request).then((results) => {
+    const labels = results[0].labelAnnotations;
+    var vals_to_return = [];
 
-function get_watson_classes(url) {
-  var visual_recognition = watson.visual_recognition({
-    api_key: api_key,
-    version: 'v3',
-    version_date: '2016-05-20'
+    labels.forEach((label) => {
+      google_classes.push(label.description);
+    });
+    console.log(google_classes);
   });
-
-  console.log(url);
-
-  // request(url)
-  //   .then((image) => {
-  //     request.post(`https://gateway-a.watsonplatform.net/visual-recognition/api/v3/classify&api_key=${api_key}?version=2016-05-20`, (err, resp, body) => {
-  //       if (err) {
-  //         console.log('Error!');
-  //       } else {
-  //         console.log('URL: ' + body);
-  //       }
-  //     });
-  //     var form = req.form();
-  //     form.append('images_file', image, {
-  //         filename: 'myfile.jpg',
-  //         contentType: 'images/jpeg'
-  //     });
-      // request({
-    //     method: "POST",
-    //     uri: "https://gateway-a.watsonplatform.net/visual-recognition/api/v3/classify",
-    //     form: {
-    //         images_file: image
-    //     },
-    //     params: {
-    //       api_key: api_key,
-    //       version: '2016-05-20'
-    //     }
-    //   }).then((data) => console.log("contact success:", data))
-    //     .catch((err) => console.log("contact ERROR:", err));
-    // })
-    // .catch((err) => console.error(err));
-    // return;
-
-    request(url)
-      .then((data) => {
-
-      var params = {
-        images_file: data
-      }
-
-      return visual_recognition.classify(params, function(err, res) {
-        if (err) {
-          return console.log(err);
-        }
-
-        console.log(JSON.stringify(res, null, 2));
-
-        const classes = res.images[0].classifiers[0].classes;
-
-        classes.forEach((label) => watson_classes.push(label.class));
-      });
-    })
-    .catch((err) => console.error(err));
 }
 
 function calculate_watson(url, event_score) {
-  let promises = [ get_google_classes(url), get_watson_classes(url) ];
+  let promises = [ get_google_classes(url) ];
 
   return Promise.all(promises).then(() => {
     var user_clothing = _.union(google_classes, watson_classes);
@@ -253,14 +196,11 @@ function fetch_amazon(session, clothing) {
 var bot = new builder.UniversalBot(connector, function (session) {
   var content;
   if (session.message.attachments && session.message.attachments.length > 0 && session.message.attachments[0].contentType === 'image/jpeg') {
-    // console.log(session.message);
-    // console.log('@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@');
     if (correctFormality) {
       content = session.message.attachments[0].contentUrl;
-      session.send(content);
-      // calculate_watson(content, correctFormality)
-      //   .then((data) => console.log(JSON.stringify(data, undefined, 2)))
-      //   .catch((err) => console.error(err));
+      calculate_watson(content, correctFormality)
+        .then((data) => console.log(JSON.stringify(data, undefined, 2)))
+        .catch((err) => console.error(err));
       session.send("Hmmm... let me see...");
     }
     else {
